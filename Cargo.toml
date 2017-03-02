@@ -1,0 +1,6 @@
+[package]
+name = "hexplay"
+version = "0.1.0"
+authors = ["Tom Moers <tmoers@users.noreply.github.com>"]
+
+[dependencies]
