@@ -12,5 +12,6 @@ categories = ["development-tools", "visualization"]
 keywords = ["display", "hex"]
 
 [badges]
+travis-ci = { repository = "tmoers/hexplay" }
 
 [dependencies]
