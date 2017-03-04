@@ -1,7 +1,8 @@
-use byte_mapping;
-
+use itertools::Itertools;
 use std::fmt::{Formatter, Result};
 use std;
+
+use byte_mapping;
 
 /// The HexView struct represents the configuration of how to display the data.
 pub struct HexView<'a> {
@@ -54,86 +55,39 @@ impl<'a> HexViewBuilder<'a> {
     }
 }
 
-#[derive(Default)]
-struct Padding {
-    left: usize,
-    right: usize,
-}
-
-impl Padding {
-    fn new(left_padding: usize, right_padding: usize) -> Padding {
-        Padding {
-            left: left_padding,
-            right: right_padding,
-        }
-    }
-
-    fn from_left(left_padding: usize) -> Padding {
-        Padding {
-            left: left_padding,
-            right: 0,
-        }
-    }
-
-    fn from_right(right_padding: usize) -> Padding {
-        Padding {
-            left: 0,
-            right: right_padding,
-        }
+fn fmt_byte_as_hex(f: &mut Formatter, optional_byte: &Option<u8>) -> Result {
+    match *optional_byte {
+        Some(ref byte) => write!(f, "{:02X}", byte),
+        None => write!(f, "  "),
     }
 }
 
-fn fmt_bytes_as_hex(f: &mut Formatter, bytes: &[u8], padding: &Padding) -> Result {
-    let mut separator = "";
-
-    for _ in 0..padding.left {
-        write!(f, "{}  ", separator)?;
-        separator = " ";
+fn fmt_byte_as_char(f: &mut Formatter, cp: &[char], optional_byte: &Option<u8>) -> Result {
+    match *optional_byte {
+        Some(ref byte) => write!(f, "{}", byte_mapping::as_char(*byte, cp)),
+        None => write!(f, "  "),
     }
-
-    for byte in bytes.iter() {
-        write!(f, "{}{:02X}", separator, byte)?;
-        separator = " ";
-    }
-
-    for _ in 0..padding.right {
-        write!(f, "{}  ", separator)?;
-        separator = " ";
-    }
-
-    Ok(())
 }
 
-fn fmt_bytes_as_char(f: &mut Formatter, cp: &[char], bytes: &[u8], padding: &Padding) -> Result {
-    for _ in 0..padding.left {
-        write!(f, " ")?;
-    }
-
-    for &byte in bytes.iter() {
-        write!(f, "{}", byte_mapping::as_char(byte, cp))?;
-    }
-
-    for _ in 0..padding.right {
-        write!(f, " ")?;
-    }
-
-    Ok(())
-}
-
-fn fmt_line(f: &mut Formatter, address: usize, cp: &[char], bytes: &[u8], padding: &Padding) -> Result {
+/*
+fn fmt_optional_bytes_line<I>(f: &mut Formatter, address: usize, cp: &[char], bytes: &I) -> Result where I: itertools::Itertools {
     write!(f, "{:0width$X}", address, width = 8)?;
 
     write!(f, "  ")?;
-    fmt_bytes_as_hex(f, bytes, &padding)?;
+    for &byte in &bytes.into_iter() {
+        fmt_byte_as_hex(f, &byte)?;
+    }
     write!(f, "  ")?;
 
     write!(f, "| ")?;
-    fmt_bytes_as_char(f, cp, bytes, &padding)?;
+    //for &byte in bytes.iter() {
+        //fmt_byte_as_char(f, cp, &byte)?;
+    //}
     write!(f, " |")?;
 
     Ok(())
 }
-
+*/
 fn calculate_begin_padding(address_offset: usize, row_width: usize) -> usize {
     debug_assert!(row_width != 0, "A zero row width is can not be used to calculate the begin padding");
     address_offset % row_width
@@ -144,8 +98,10 @@ fn calculate_end_padding(data_size: usize, row_width: usize) -> usize {
     (row_width - data_size % row_width) % row_width
 }
 
+
 impl<'a> std::fmt::Display for HexView<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+
         if self.row_width == 0 {
             write!(f, "Invalid HexView::width")?;
             return Err(std::fmt::Error);
@@ -154,35 +110,22 @@ impl<'a> std::fmt::Display for HexView<'a> {
         let begin_padding = calculate_begin_padding(self.address_offset, self.row_width);
         let end_padding = calculate_end_padding(begin_padding + self.data.len(), self.row_width);
         let mut address = self.address_offset - begin_padding;
-        let mut offset = 0;
-        let mut separator = "";
 
-        if self.data.len() + begin_padding + end_padding <= self.row_width {
-            return fmt_line(f, address, &self.codepage, &self.data, &Padding::new(begin_padding, end_padding));
-        }
+        let begin_padding_iter = std::iter::repeat(None).take(begin_padding);
+        let end_padding_iter = std::iter::repeat(None).take(end_padding);
+        let data_iter = self.data.iter().map(|value| { Some(value) });
 
-        if begin_padding != 0 {
-            let slice = &self.data[offset..offset + self.row_width - begin_padding];
-            fmt_line(f, address, &self.codepage, &slice, &Padding::from_left(begin_padding))?;
-            offset += self.row_width - begin_padding;
+        let total_iter = std::iter::empty()
+            .chain(begin_padding_iter)
+            .chain(data_iter)
+            .chain(end_padding_iter);
+
+        for &chunk in &total_iter.chunks(self.row_width).into_iter() {
+            //fmt_optional_bytes_line(f, address, self.codepage, &chunk);
+            for byte in &chunk.into_iter() {
+
+            }
             address += self.row_width;
-            separator = "\n";
-        }
-
-
-        while offset + (self.row_width - 1) < self.data.len() {
-            let slice = &self.data[offset..offset + self.row_width];
-            write!(f, "{}", separator)?;
-            fmt_line(f, address, &self.codepage, &slice, &Padding::default())?;
-            offset += self.row_width;
-            address += self.row_width;
-            separator = "\n";
-        }
-
-        if end_padding != 0 {
-            let slice = &self.data[offset..];
-            write!(f, "{}", separator)?;
-            fmt_line(f, address, &self.codepage, &slice, &Padding::from_right(end_padding))?;
         }
 
         Ok(())
