@@ -36,11 +36,14 @@
 //! 00000030  30 31 32 33 34 35 36 37 38 39 3A 3B 3C 3D 3E 3F  | 0123456789:;<=>? |
 //! 00000040  40 41 42 43 44 45 46 47                          | @ABCDEFG         |
 //! ```
+#[macro_use]
+extern crate lazy_static;
 
 mod byte_mapping;
 mod format;
 
 pub use byte_mapping::CODEPAGE_0850;
 pub use byte_mapping::CODEPAGE_1252;
+pub use byte_mapping::CODEPAGE_HEX;
 pub use format::HexView;
 pub use format::HexViewBuilder;
