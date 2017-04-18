@@ -30,9 +30,7 @@ pub struct HexViewBuilder<'a> {
 
 impl<'a> HexViewBuilder<'a> {
     pub fn new(data: &[u8]) -> HexViewBuilder {
-        HexViewBuilder {
-            hex_view: HexView::new(&data)
-        }
+        HexViewBuilder { hex_view: HexView::new(&data) }
     }
 
     pub fn address_offset(mut self, offset: usize) -> HexViewBuilder<'a> {
@@ -121,7 +119,12 @@ fn fmt_bytes_as_char(f: &mut Formatter, cp: &[char], bytes: &[u8], padding: &Pad
     Ok(())
 }
 
-fn fmt_line(f: &mut Formatter, address: usize, cp: &[char], bytes: &[u8], padding: &Padding) -> Result {
+fn fmt_line(f: &mut Formatter,
+            address: usize,
+            cp: &[char],
+            bytes: &[u8],
+            padding: &Padding)
+            -> Result {
     write!(f, "{:0width$X}", address, width = 8)?;
 
     write!(f, "  ")?;
@@ -136,12 +139,14 @@ fn fmt_line(f: &mut Formatter, address: usize, cp: &[char], bytes: &[u8], paddin
 }
 
 fn calculate_begin_padding(address_offset: usize, row_width: usize) -> usize {
-    debug_assert!(row_width != 0, "A zero row width is can not be used to calculate the begin padding");
+    debug_assert!(row_width != 0,
+                  "A zero row width is can not be used to calculate the begin padding");
     address_offset % row_width
 }
 
 fn calculate_end_padding(data_size: usize, row_width: usize) -> usize {
-    debug_assert!(row_width != 0, "A zero row width is can not be used to calculate the end padding");
+    debug_assert!(row_width != 0,
+                  "A zero row width is can not be used to calculate the end padding");
     (row_width - data_size % row_width) % row_width
 }
 
@@ -159,12 +164,20 @@ impl<'a> std::fmt::Display for HexView<'a> {
         let mut separator = "";
 
         if self.data.len() + begin_padding + end_padding <= self.row_width {
-            return fmt_line(f, address, &self.codepage, &self.data, &Padding::new(begin_padding, end_padding));
+            return fmt_line(f,
+                            address,
+                            &self.codepage,
+                            &self.data,
+                            &Padding::new(begin_padding, end_padding));
         }
 
         if begin_padding != 0 {
             let slice = &self.data[offset..offset + self.row_width - begin_padding];
-            fmt_line(f, address, &self.codepage, &slice, &Padding::from_left(begin_padding))?;
+            fmt_line(f,
+                     address,
+                     &self.codepage,
+                     &slice,
+                     &Padding::from_left(begin_padding))?;
             offset += self.row_width - begin_padding;
             address += self.row_width;
             separator = "\n";
@@ -183,7 +196,11 @@ impl<'a> std::fmt::Display for HexView<'a> {
         if end_padding != 0 {
             let slice = &self.data[offset..];
             write!(f, "{}", separator)?;
-            fmt_line(f, address, &self.codepage, &slice, &Padding::from_right(end_padding))?;
+            fmt_line(f,
+                     address,
+                     &self.codepage,
+                     &slice,
+                     &Padding::from_right(end_padding))?;
         }
 
         Ok(())
@@ -206,26 +223,24 @@ mod tests {
     fn a_full_line_is_formatted_as_expected() {
         let data: Vec<u8> = (0x40..0x40 + 0xF + 1).collect();
 
-        let row_view = HexViewBuilder::new(&data)
-            .row_width(data.len())
-            .finish();
+        let row_view = HexViewBuilder::new(&data).row_width(data.len()).finish();
 
         let result = format!("{}", row_view);
 
-        assert_eq!(result, "00000000  40 41 42 43 44 45 46 47 48 49 4A 4B 4C 4D 4E 4F  | @ABCDEFGHIJKLMNO |");
+        assert_eq!(result,
+                   "00000000  40 41 42 43 44 45 46 47 48 49 4A 4B 4C 4D 4E 4F  | @ABCDEFGHIJKLMNO |");
     }
 
     #[test]
     fn an_incomplete_line_is_padded_on_the_right() {
         let data = ['a' as u8; 10];
 
-        let row_view = HexViewBuilder::new(&data)
-            .row_width(16)
-            .finish();
+        let row_view = HexViewBuilder::new(&data).row_width(16).finish();
 
         let result = format!("{}", row_view);
 
-        assert_eq!(result, "00000000  61 61 61 61 61 61 61 61 61 61                    | aaaaaaaaaa       |");
+        assert_eq!(result,
+                   "00000000  61 61 61 61 61 61 61 61 61 61                    | aaaaaaaaaa       |");
     }
 
     #[test]
@@ -240,7 +255,8 @@ mod tests {
         let result = format!("{}", row_view);
         println!("{}", result);
 
-        assert_eq!(result, "00000000                 61 61 61 61 61 61 61 61 61 61 61  |      aaaaaaaaaaa |");
+        assert_eq!(result,
+                   "00000000                 61 61 61 61 61 61 61 61 61 61 61  |      aaaaaaaaaaa |");
     }
 
     #[test]
@@ -255,7 +271,8 @@ mod tests {
         let result = format!("{}", row_view);
         println!("{}", result);
 
-        assert_eq!(result, "00000000                 61 61 61 61 61 61 61 61           |      aaaaaaaa    |");
+        assert_eq!(result,
+                   "00000000                 61 61 61 61 61 61 61 61           |      aaaaaaaa    |");
     }
 
     #[test]
@@ -275,9 +292,7 @@ mod tests {
     fn the_address_offset_is_zero_by_default() {
         let data = [99; 16];
 
-        let row_view = HexViewBuilder::new(&data)
-            .row_width(16)
-            .finish();
+        let row_view = HexViewBuilder::new(&data).row_width(16).finish();
 
         let result = format!("{}", row_view);
         let address_offset_str = format!("{:X}", 0);
@@ -346,5 +361,38 @@ mod tests {
         println!("{}", result);
 
         assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn all_characters_can_be_printed_in_codepage_hex() {
+        let data: Vec<u8> = (0u16..256u16).map(|v| v as u8).collect();
+
+        let dump_view = HexViewBuilder::new(&data)
+            .codepage(&byte_mapping::CODEPAGE_HEX)
+            .address_offset(20)
+            .row_width(16)
+            .finish();
+
+        let result = format!("{}", dump_view);
+        println!("{}", result);
+
+        assert!(!result.is_empty());
+        assert_eq!(result, r##"00000010              00 01 02 03 04 05 06 07 08 09 0A 0B  |     ............ |
+00000020  0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B  | ................ |
+00000030  1C 1D 1E 1F 20 21 22 23 24 25 26 27 28 29 2A 2B  | .... !"#$%&'()*+ |
+00000040  2C 2D 2E 2F 30 31 32 33 34 35 36 37 38 39 3A 3B  | ,-./0123456789:; |
+00000050  3C 3D 3E 3F 40 41 42 43 44 45 46 47 48 49 4A 4B  | <=>?@ABCDEFGHIJK |
+00000060  4C 4D 4E 4F 50 51 52 53 54 55 56 57 58 59 5A 5B  | LMNOPQRSTUVWXYZ[ |
+00000070  5C 5D 5E 5F 60 61 62 63 64 65 66 67 68 69 6A 6B  | \]^_`abcdefghijk |
+00000080  6C 6D 6E 6F 70 71 72 73 74 75 76 77 78 79 7A 7B  | lmnopqrstuvwxyz{ |
+00000090  7C 7D 7E 7F 80 81 82 83 84 85 86 87 88 89 8A 8B  | |}~............. |
+000000A0  8C 8D 8E 8F 90 91 92 93 94 95 96 97 98 99 9A 9B  | ................ |
+000000B0  9C 9D 9E 9F A0 A1 A2 A3 A4 A5 A6 A7 A8 A9 AA AB  | ................ |
+000000C0  AC AD AE AF B0 B1 B2 B3 B4 B5 B6 B7 B8 B9 BA BB  | ................ |
+000000D0  BC BD BE BF C0 C1 C2 C3 C4 C5 C6 C7 C8 C9 CA CB  | ................ |
+000000E0  CC CD CE CF D0 D1 D2 D3 D4 D5 D6 D7 D8 D9 DA DB  | ................ |
+000000F0  DC DD DE DF E0 E1 E2 E3 E4 E5 E6 E7 E8 E9 EA EB  | ................ |
+00000100  EC ED EE EF F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 FA FB  | ................ |
+00000110  FC FD FE FF                                      | ....             |"##);
     }
 }

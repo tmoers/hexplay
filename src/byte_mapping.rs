@@ -47,6 +47,16 @@ pub const CODEPAGE_1252: &'static [char] = &[
     'ð',  'ñ',  'ò',  'ó',  'ô',  'õ',  'ö',  '÷',  'ø',  'ù',  'ú',  'û',  'ü',  'ý',  'þ',  'ÿ', // F
 ];
 
+lazy_static! {
+    pub static ref CODEPAGE_HEX: Vec<char> = (0_u32..256)
+        .map(|c| if 0x20 <= c && c <= 0x7E {
+                ::std::char::from_u32(c).unwrap()
+            } else {
+                '.'
+            })
+        .collect();
+}
+
 fn contains(byte: u8, codepage: &[char]) -> bool {
     (byte as usize) < codepage.len()
 }
