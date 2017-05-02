@@ -262,13 +262,13 @@ mod tests {
     fn decreasing_the_row_width_increases_the_total_character_count() {
         let data: Vec<u8> = (0..64).collect();
 
-        let short_row_view = HexViewBuilder::new(&data).row_width(0).finish();
+        let short_row_view = HexViewBuilder::new(&data).row_width(1).finish();
         let long_row_view = HexViewBuilder::new(&data).row_width(16).finish();
 
         let short_row_result = format!("{}", short_row_view);
         let long_row_result = format!("{}", long_row_view);
 
-        assert!(short_row_result.len() < long_row_result.len());
+        assert!(long_row_result.len() < short_row_result.len());
     }
 
     #[test]
