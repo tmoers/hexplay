@@ -1,4 +1,6 @@
-const NIL: char = '';
+use std;
+
+const NIL: char = std::char::REPLACEMENT_CHARACTER;
 
 /// The mapping for [code page 850](https://en.wikipedia.org/wiki/Code_page_850)
 ///
