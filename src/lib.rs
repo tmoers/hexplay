@@ -42,5 +42,6 @@ mod format;
 
 pub use byte_mapping::CODEPAGE_0850;
 pub use byte_mapping::CODEPAGE_1252;
+pub use byte_mapping::CODEPAGE_ASCII;
 pub use format::HexView;
 pub use format::HexViewBuilder;

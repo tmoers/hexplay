@@ -1,4 +1,31 @@
-const NIL: char = '';
+use std;
+
+const NIL: char = std::char::REPLACEMENT_CHARACTER;
+
+/// The mapping for [ASCII](https://en.wikipedia.org/wiki/ASCII)
+///
+/// This mapping uses the standard ascii character set which is composed of a
+/// 7-bit code (or 128 characters). The first 32 characters and the last one
+/// are non-printable control characters.
+pub const CODEPAGE_ASCII: &'static [char]  = &[
+//   0     1     2     3     4     5     6     7     8     9     A     B     C     D     E     F
+    NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL, // 0
+    NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL, // 1
+    ' ',  '!',  '"',  '#',  '$',  '%',  '&', '\'',  '(',  ')',  '*',  '+',  ',',  '-',  '.',  '/', // 2
+    '0',  '1',  '2',  '3',  '4',  '5',  '6',  '7',  '8',  '9',  ':',  ';',  '<',  '=',  '>',  '?', // 3
+    '@',  'A',  'B',  'C',  'D',  'E',  'F',  'G',  'H',  'I',  'J',  'K',  'L',  'M',  'N',  'O', // 4
+    'P',  'Q',  'R',  'S',  'T',  'U',  'V',  'W',  'X',  'Y',  'Z',  '[', '\\',  ']',  '^',  '_', // 5
+    '`',  'a',  'b',  'c',  'd',  'e',  'f',  'g',  'h',  'i',  'j',  'k',  'l',  'm',  'n',  'o', // 6
+    'p',  'q',  'r',  's',  't',  'u',  'v',  'w',  'x',  'y',  'z',  '{',  '|',  '}',  '~',  NIL, // 7
+    NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL, // 8
+    NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL, // 9
+    NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL, // A
+    NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL, // B
+    NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL, // C
+    NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL, // D
+    NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL, // E
+    NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL,  NIL, // F
+];
 
 /// The mapping for [code page 850](https://en.wikipedia.org/wiki/Code_page_850)
 ///
@@ -58,4 +85,22 @@ pub fn as_char(byte: u8, codepage: &[char]) -> char {
     }
 
     codepage[byte as usize]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std;
+
+    #[test]
+    fn test_hardcoded_ascii_table_matches_the_generated_one() {
+        let codepage: Vec<char> = std::iter::empty()
+            .chain(std::iter::repeat(super::NIL).take(32)) // The first 32 control characters
+            .chain((32..127).map(|c| std::char::from_u32(c).unwrap())) // The following 95 printable chars
+            .chain(std::iter::once(super::NIL)) // The DEL character
+            .chain(std::iter::repeat(super::NIL).take(128)) // The characters for the 8th bit
+            .collect();
+
+        assert_eq!(CODEPAGE_ASCII, &*codepage);
+    }
 }
