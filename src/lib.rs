@@ -1,5 +1,5 @@
 //! This crate provides a way to [Display](https://doc.rust-lang.org/std/fmt/trait.Display.html)
-//! a byte slice as as it is commonly done in a hex-editor.
+//! a byte slice as it is commonly done in a hex-editor.
 //!
 //! The configuration of the visualization are stored in the [HexView](struct.HexView.html),
 //! struct, which can be easily constructed using the [HexViewBuilder](struct.HexViewBuilder.html).

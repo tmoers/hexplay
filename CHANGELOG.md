@@ -2,6 +2,7 @@
 
 - Use dot (`.`) as the fallback character
 - Make the replacement character configurable
+- Improve documentation
 
 # 0.1.15 (May 03, 2017)
 

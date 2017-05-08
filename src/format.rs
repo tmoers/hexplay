@@ -14,6 +14,8 @@ pub struct HexView<'a> {
 }
 
 impl<'a> HexView<'a> {
+    /// Constructs a new HexView for the given data without offset and using codepage 850, a row width
+    /// of 16 and `.` as replacement character.
     pub fn new(data: &[u8]) -> HexView {
         HexView {
             address_offset: 0,
@@ -31,32 +33,41 @@ pub struct HexViewBuilder<'a> {
 }
 
 impl<'a> HexViewBuilder<'a> {
+    /// Constructs a new HexViewBuilder for the given data.
     pub fn new(data: &[u8]) -> HexViewBuilder {
         HexViewBuilder {
             hex_view: HexView::new(&data)
         }
     }
 
+    /// Configures the address offset of the HexView under construction.
     pub fn address_offset(mut self, offset: usize) -> HexViewBuilder<'a> {
         self.hex_view.address_offset = offset;
         self
     }
 
+    /// Configures the codepage of the HexView under construction.
     pub fn codepage<'b: 'a>(mut self, codepage: &'b [char]) -> HexViewBuilder<'a> {
         self.hex_view.codepage = codepage;
         self
     }
 
+    /// Configures the replacement character of the HexView under construction.
+    ///
+    /// The replacement character is the character that will be used for nonprintable
+    /// characters in the codepage.
     pub fn replacement_character(mut self, ch: char) -> HexViewBuilder<'a> {
         self.hex_view.replacement_character = ch;
         self
     }
 
+    /// Configures the row width of the HexView under construction.
     pub fn row_width(mut self, width: usize) -> HexViewBuilder<'a> {
         self.hex_view.row_width = width;
         self
     }
 
+    /// Constructs the HexView.
     pub fn finish(self) -> HexView<'a> {
         self.hex_view
     }
