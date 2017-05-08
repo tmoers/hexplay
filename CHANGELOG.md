@@ -1,4 +1,4 @@
-# 0.1.16 (May ??, 2017)
+# 0.1.16 (May 08, 2017)
 
 - Use dot (`.`) as the fallback character
 - Make the replacement character configurable
