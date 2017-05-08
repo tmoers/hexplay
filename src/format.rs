@@ -9,6 +9,7 @@ pub struct HexView<'a> {
     address_offset: usize,
     codepage: &'a [char],
     data: &'a [u8],
+    replacement_character: char,
     row_width: usize,
 }
 
@@ -18,6 +19,7 @@ impl<'a> HexView<'a> {
             address_offset: 0,
             codepage: &byte_mapping::CODEPAGE_0850,
             data: data,
+            replacement_character: '.',
             row_width: 16,
         }
     }
@@ -42,6 +44,11 @@ impl<'a> HexViewBuilder<'a> {
 
     pub fn codepage<'b: 'a>(mut self, codepage: &'b [char]) -> HexViewBuilder<'a> {
         self.hex_view.codepage = codepage;
+        self
+    }
+
+    pub fn replacement_character(mut self, ch: char) -> HexViewBuilder<'a> {
+        self.hex_view.replacement_character = ch;
         self
     }
 
@@ -105,13 +112,13 @@ fn fmt_bytes_as_hex(f: &mut Formatter, bytes: &[u8], padding: &Padding) -> Resul
     Ok(())
 }
 
-fn fmt_bytes_as_char(f: &mut Formatter, cp: &[char], bytes: &[u8], padding: &Padding) -> Result {
+fn fmt_bytes_as_char(f: &mut Formatter, cp: &[char], repl_char: char, bytes: &[u8], padding: &Padding) -> Result {
     for _ in 0..padding.left {
         write!(f, " ")?;
     }
 
     for &byte in bytes.iter() {
-        write!(f, "{}", byte_mapping::as_char(byte, cp))?;
+        write!(f, "{}", byte_mapping::as_char(byte, cp, repl_char))?;
     }
 
     for _ in 0..padding.right {
@@ -121,7 +128,7 @@ fn fmt_bytes_as_char(f: &mut Formatter, cp: &[char], bytes: &[u8], padding: &Pad
     Ok(())
 }
 
-fn fmt_line(f: &mut Formatter, address: usize, cp: &[char], bytes: &[u8], padding: &Padding) -> Result {
+fn fmt_line(f: &mut Formatter, address: usize, cp: &[char], repl_char: char, bytes: &[u8], padding: &Padding) -> Result {
     write!(f, "{:0width$X}", address, width = 8)?;
 
     write!(f, "  ")?;
@@ -129,7 +136,7 @@ fn fmt_line(f: &mut Formatter, address: usize, cp: &[char], bytes: &[u8], paddin
     write!(f, "  ")?;
 
     write!(f, "| ")?;
-    fmt_bytes_as_char(f, cp, bytes, &padding)?;
+    fmt_bytes_as_char(f, cp, repl_char, bytes, &padding)?;
     write!(f, " |")?;
 
     Ok(())
@@ -159,12 +166,12 @@ impl<'a> std::fmt::Display for HexView<'a> {
         let mut separator = "";
 
         if self.data.len() + begin_padding + end_padding <= self.row_width {
-            return fmt_line(f, address, &self.codepage, &self.data, &Padding::new(begin_padding, end_padding));
+            return fmt_line(f, address, &self.codepage, self.replacement_character, &self.data, &Padding::new(begin_padding, end_padding));
         }
 
         if begin_padding != 0 {
             let slice = &self.data[offset..offset + self.row_width - begin_padding];
-            fmt_line(f, address, &self.codepage, &slice, &Padding::from_left(begin_padding))?;
+            fmt_line(f, address, &self.codepage, self.replacement_character, &slice, &Padding::from_left(begin_padding))?;
             offset += self.row_width - begin_padding;
             address += self.row_width;
             separator = "\n";
@@ -174,7 +181,7 @@ impl<'a> std::fmt::Display for HexView<'a> {
         while offset + (self.row_width - 1) < self.data.len() {
             let slice = &self.data[offset..offset + self.row_width];
             write!(f, "{}", separator)?;
-            fmt_line(f, address, &self.codepage, &slice, &Padding::default())?;
+            fmt_line(f, address, &self.codepage, self.replacement_character, &slice, &Padding::default())?;
             offset += self.row_width;
             address += self.row_width;
             separator = "\n";
@@ -183,7 +190,7 @@ impl<'a> std::fmt::Display for HexView<'a> {
         if end_padding != 0 {
             let slice = &self.data[offset..];
             write!(f, "{}", separator)?;
-            fmt_line(f, address, &self.codepage, &slice, &Padding::from_right(end_padding))?;
+            fmt_line(f, address, &self.codepage, self.replacement_character, &slice, &Padding::from_right(end_padding))?;
         }
 
         Ok(())
@@ -193,6 +200,7 @@ impl<'a> std::fmt::Display for HexView<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std;
 
     #[test]
     fn test_begin_padding() {
@@ -331,6 +339,35 @@ mod tests {
 
         assert_eq!(1, one_line_result.lines().count());
         assert_eq!(2, two_line_result.lines().count());
+    }
+
+    #[test]
+    fn the_replacement_character_is_dot_by_default() {
+        let data = [0; 1];
+        let empty_cp = [];
+
+        let result = format!("{}", HexViewBuilder::new(&data)
+            .codepage(&empty_cp)
+            .finish());
+
+        println!("{}", result);
+
+        assert!(result.contains('.'));
+    }
+
+    #[test]
+    fn the_replacement_character_can_be_changed() {
+        let data = [0; 1];
+        let empty_cp = [];
+
+        let result = format!("{}", HexViewBuilder::new(&data)
+            .codepage(&empty_cp)
+            .replacement_character(std::char::REPLACEMENT_CHARACTER)
+            .finish());
+
+        println!("{}", result);
+
+        assert!(result.contains(std::char::REPLACEMENT_CHARACTER));
     }
 
     #[test]
