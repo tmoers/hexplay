@@ -1,6 +1,6 @@
 use std;
 
-const NIL: char = std::char::REPLACEMENT_CHARACTER;
+pub const NIL: char = std::char::REPLACEMENT_CHARACTER;
 
 /// The mapping for [ASCII](https://en.wikipedia.org/wiki/ASCII)
 ///
@@ -78,13 +78,21 @@ fn contains(byte: u8, codepage: &[char]) -> bool {
     (byte as usize) < codepage.len()
 }
 
+fn is_nil(byte: u8, codepage: &[char]) -> bool {
+    codepage[byte as usize] == NIL
+}
+
+fn is_printable(byte: u8, codepage: &[char]) -> bool {
+    contains(byte, codepage) && !is_nil(byte, codepage)
+}
+
 /// Returns a byte's character representation given a specific codepage
-pub fn as_char(byte: u8, codepage: &[char]) -> char {
-    if !contains(byte, codepage) {
-        return NIL;
+pub fn as_char(byte: u8, codepage: &[char], repl_char: char) -> char {
+    if !is_printable(byte, codepage) {
+        return repl_char;
     }
 
-    codepage[byte as usize]
+    return codepage[byte as usize];
 }
 
 #[cfg(test)]

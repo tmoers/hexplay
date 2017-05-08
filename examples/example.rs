@@ -28,6 +28,7 @@ fn main() {
         .address_offset(10)
         .codepage(CODEPAGE_1252)
         .row_width(14)
+        .replacement_character(std::char::REPLACEMENT_CHARACTER)
         .finish();
     println!("Custom view: \n{}\n\n", combined_view);
 }
