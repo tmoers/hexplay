@@ -37,6 +37,8 @@
 //! 00000040  40 41 42 43 44 45 46 47                          | @ABCDEFG         |
 //! ```
 
+extern crate termion;
+
 mod byte_mapping;
 mod format;
 
@@ -45,3 +47,5 @@ pub use byte_mapping::CODEPAGE_1252;
 pub use byte_mapping::CODEPAGE_ASCII;
 pub use format::HexView;
 pub use format::HexViewBuilder;
+pub use termion::color::Color as Color;
+pub use termion::color::Rgb as Rgb;

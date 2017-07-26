@@ -1,8 +1,57 @@
 use std::fmt::{Formatter, Result};
+use std::ops::Range;
 use std;
 
 use byte_mapping;
+use Rgb;
 
+use termion::color;
+use termion::style;
+
+pub type Colors = Vec<(Rgb, Range<usize>)>;
+
+struct ColorRange<'a> {
+    colors: &'a Colors,
+    offset: usize,
+    idx: usize,
+}
+
+impl<'a> Clone for ColorRange<'a> {
+    fn clone(&self) -> Self {
+        ColorRange {
+            colors: self.colors,
+            offset: self.offset,
+            idx: self.idx,
+        }
+    }
+}
+
+impl<'a> ColorRange<'a> {
+    fn new(colors: &'a Colors) -> Self {
+        ColorRange {
+            colors: colors,
+            offset: 0,
+            idx: 0,
+        }
+    }
+    fn update_offset(&mut self, offset: usize) {
+        self.offset = offset;
+    }
+    pub fn get(&mut self, idx: usize) -> Option<Rgb> {
+        while self.idx < self.colors.len() {
+            let (rgb, range) = self.colors[self.idx].clone();
+            let offset = self.offset + idx;
+            if offset >= range.start && offset < range.end {
+                return Some(rgb)
+            } else if offset <= range.start { // for non-contiguous colors
+                return None
+            } else {
+                self.idx += 1;
+            }
+        }
+        None
+    }
+}
 
 /// The HexView struct represents the configuration of how to display the data.
 pub struct HexView<'a> {
@@ -11,6 +60,7 @@ pub struct HexView<'a> {
     data: &'a [u8],
     replacement_character: char,
     row_width: usize,
+    colors: Colors,
 }
 
 impl<'a> HexView<'a> {
@@ -23,6 +73,7 @@ impl<'a> HexView<'a> {
             data: data,
             replacement_character: '.',
             row_width: 16,
+            colors: Colors::new(),
         }
     }
 }
@@ -66,9 +117,19 @@ impl<'a> HexViewBuilder<'a> {
         self.hex_view.row_width = width;
         self
     }
-
+    /// Adds the vector of `colors` to the range color printer
+    pub fn add_colors(mut self, colors: Colors) -> HexViewBuilder<'a> {
+        self.hex_view.colors.extend(colors);
+        self
+    }
+    /// Adds the `color` to the given `range`
+    pub fn add_color(mut self, color: Rgb, range: Range<usize>) -> HexViewBuilder<'a> {
+        self.hex_view.colors.push((color, range));
+        self
+    }
     /// Constructs the HexView.
-    pub fn finish(self) -> HexView<'a> {
+    pub fn finish(mut self) -> HexView<'a> {
+        self.hex_view.colors.sort_by(|&(_, ref r1), &(_, ref r2)| r1.start.cmp(&r2.start));
         self.hex_view
     }
 }
@@ -102,7 +163,7 @@ impl Padding {
     }
 }
 
-fn fmt_bytes_as_hex(f: &mut Formatter, bytes: &[u8], padding: &Padding) -> Result {
+fn fmt_bytes_as_hex(f: &mut Formatter, bytes: &[u8], color_range: &mut ColorRange, padding: &Padding) -> Result {
     let mut separator = "";
 
     for _ in 0..padding.left {
@@ -110,8 +171,11 @@ fn fmt_bytes_as_hex(f: &mut Formatter, bytes: &[u8], padding: &Padding) -> Resul
         separator = " ";
     }
 
-    for byte in bytes.iter() {
-        write!(f, "{}{:02X}", separator, byte)?;
+    for (i, byte) in bytes.iter().enumerate() {
+       match color_range.get(i) {
+            Some(rgb) => write!(f, "{}{}", separator, format!("{}{:02X}{}", color::Fg(rgb), byte, style::Reset))?,
+            None => write!(f, "{}{:02X}", separator, byte)?,
+       }
         separator = " ";
     }
 
@@ -123,13 +187,17 @@ fn fmt_bytes_as_hex(f: &mut Formatter, bytes: &[u8], padding: &Padding) -> Resul
     Ok(())
 }
 
-fn fmt_bytes_as_char(f: &mut Formatter, cp: &[char], repl_char: char, bytes: &[u8], padding: &Padding) -> Result {
+fn fmt_bytes_as_char(f: &mut Formatter, cp: &[char], repl_char: char, bytes: &[u8], color_range: &mut ColorRange, padding: &Padding) -> Result {
     for _ in 0..padding.left {
         write!(f, " ")?;
     }
 
-    for &byte in bytes.iter() {
-        write!(f, "{}", byte_mapping::as_char(byte, cp, repl_char))?;
+    for (i, &byte) in bytes.iter().enumerate() {
+        let byte = byte_mapping::as_char(byte, cp, repl_char);
+        match color_range.get(i) {
+            Some(rgb) => write!(f, "{}", format!("{}{}{}", color::Fg(rgb), byte, style::Reset))?,
+            None =>      write!(f, "{}", byte)?,
+        }
     }
 
     for _ in 0..padding.right {
@@ -139,15 +207,16 @@ fn fmt_bytes_as_char(f: &mut Formatter, cp: &[char], repl_char: char, bytes: &[u
     Ok(())
 }
 
-fn fmt_line(f: &mut Formatter, address: usize, cp: &[char], repl_char: char, bytes: &[u8], padding: &Padding) -> Result {
+fn fmt_line(f: &mut Formatter, address: usize, cp: &[char], repl_char: char, bytes: &[u8], color_range: &mut ColorRange, padding: &Padding) -> Result {
     write!(f, "{:0width$X}", address, width = 8)?;
 
+    let mut cr = color_range.clone();
     write!(f, "  ")?;
-    fmt_bytes_as_hex(f, bytes, &padding)?;
+    fmt_bytes_as_hex(f, bytes, color_range, &padding)?;
     write!(f, "  ")?;
 
     write!(f, "| ")?;
-    fmt_bytes_as_char(f, cp, repl_char, bytes, &padding)?;
+    fmt_bytes_as_char(f, cp, repl_char, bytes, &mut cr, &padding)?;
     write!(f, " |")?;
 
     Ok(())
@@ -175,16 +244,18 @@ impl<'a> std::fmt::Display for HexView<'a> {
         let mut address = self.address_offset - begin_padding;
         let mut offset = 0;
         let mut separator = "";
+        let mut color_range = ColorRange::new(&self.colors);
 
         if self.data.len() + begin_padding + end_padding <= self.row_width {
-            return fmt_line(f, address, &self.codepage, self.replacement_character, &self.data, &Padding::new(begin_padding, end_padding));
+            return fmt_line(f, address, &self.codepage, self.replacement_character, &self.data, &mut color_range, &Padding::new(begin_padding, end_padding));
         }
 
         if begin_padding != 0 {
             let slice = &self.data[offset..offset + self.row_width - begin_padding];
-            fmt_line(f, address, &self.codepage, self.replacement_character, &slice, &Padding::from_left(begin_padding))?;
+            fmt_line(f, address, &self.codepage, self.replacement_character, &slice, &mut color_range, &Padding::from_left(begin_padding))?;
             offset += self.row_width - begin_padding;
             address += self.row_width;
+            color_range.update_offset(offset);
             separator = "\n";
         }
 
@@ -192,16 +263,17 @@ impl<'a> std::fmt::Display for HexView<'a> {
         while offset + (self.row_width - 1) < self.data.len() {
             let slice = &self.data[offset..offset + self.row_width];
             write!(f, "{}", separator)?;
-            fmt_line(f, address, &self.codepage, self.replacement_character, &slice, &Padding::default())?;
+            fmt_line(f, address, &self.codepage, self.replacement_character, &slice, &mut color_range, &Padding::default())?;
             offset += self.row_width;
             address += self.row_width;
+            color_range.update_offset(offset);
             separator = "\n";
         }
 
         if end_padding != 0 {
             let slice = &self.data[offset..];
             write!(f, "{}", separator)?;
-            fmt_line(f, address, &self.codepage, self.replacement_character, &slice, &Padding::from_right(end_padding))?;
+            fmt_line(f, address, &self.codepage, self.replacement_character, &slice, &mut color_range, &Padding::from_right(end_padding))?;
         }
 
         Ok(())
