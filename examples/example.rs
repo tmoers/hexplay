@@ -31,4 +31,11 @@ fn main() {
         .replacement_character(std::char::REPLACEMENT_CHARACTER)
         .finish();
     println!("Custom view: \n{}\n\n", combined_view);
+
+    let color_view = HexViewBuilder::new(&data)
+        .codepage(CODEPAGE_ASCII)
+        .force_color()
+        .add_colors(vec![])
+        .finish();
+    ascii_view.print();
 }
