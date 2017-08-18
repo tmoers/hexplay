@@ -35,7 +35,7 @@ impl<'a> HexView<'a> {
         let mut buffer: Buffer = writer.buffer();
         self.fmt(&mut buffer)?;
         writer.print(&buffer)?;
-        println!();
+        println!("");
         Ok(())
     }
     /// Constructs a new HexView for the given data without offset and using codepage 850, a row width
@@ -138,7 +138,7 @@ impl<'a> HexView<'a> {
 
         while offset + (self.row_width - 1) < self.data.len() {
             let slice = &self.data[offset..offset + self.row_width];
-            writeln!(buffer)?;
+            writeln!(buffer, "")?;
             Self::fmt_line(buffer, address, &self.codepage, self.replacement_character, &slice, &mut color_range, &Padding::default())?;
             offset += self.row_width;
             address += self.row_width;
@@ -147,7 +147,7 @@ impl<'a> HexView<'a> {
 
         if end_padding != 0 {
             let slice = &self.data[offset..];
-            writeln!(buffer)?;
+            writeln!(buffer, "")?;
             Self::fmt_line(buffer, address, &self.codepage, self.replacement_character, &slice, &mut color_range, &Padding::from_right(end_padding))?;
         }
         Ok(())
@@ -413,7 +413,7 @@ mod tests {
         println!("{}", two_line_result);
 
         assert_eq!(1, one_line_result.lines().count());
-        assert_eq!(2, two_line_result.lines().count());
+        assert_eq!(3, two_line_result.lines().count());
     }
 
     #[test]

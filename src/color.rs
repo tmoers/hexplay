@@ -12,7 +12,7 @@ pub use termcolor::ColorSpec as Spec;
 /// A vector of `(ColorSpec, Range)` values to print
 pub type Colors = Vec<(Spec, Range<usize>)>;
 
-pub(crate) struct ColorlessString(pub String);
+pub struct ColorlessString(pub String);
 
 impl Write for ColorlessString {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
@@ -38,7 +38,7 @@ impl WriteColor for ColorlessString {
     }
 }
 
-pub(crate) struct ColorRange<'a> {
+pub struct ColorRange<'a> {
     colors: &'a Colors,
     offset: usize,
     idx: usize,

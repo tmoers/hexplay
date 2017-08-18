@@ -45,6 +45,8 @@
 //! **NB**: overlapping color ranges have unspecified behavior (not unsafe though, of course)
 //!
 //! ```rust
+//! use hexplay::HexViewBuilder;
+//!
 //! let data : Vec<u8> = (0u8..200u8).collect();
 //!
 //! let view = HexViewBuilder::new(&data[40..72])
@@ -54,7 +56,7 @@
 //!         (hexplay::color::red(), 6..15),
 //!         (hexplay::color::blue(), 21..26),
 //!         (hexplay::color::yellow_bold(), 15..21),
-//!         (hexplay::color::gren(), 0..6),
+//!         (hexplay::color::green(), 0..6),
 //!     ])
 //!     .finish();
 //!

@@ -37,5 +37,6 @@ fn main() {
         .force_color()
         .add_colors(vec![])
         .finish();
-    ascii_view.print();
+
+    color_view.print().unwrap();
 }
