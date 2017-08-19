@@ -1,3 +1,7 @@
+# 0.2.0 (August 19, 2017)
+
+- Support coloring subranges (thanks [m4b](https://github.com/m4b)!)
+
 # 0.1.16 (May 08, 2017)
 
 - Use dot (`.`) as the fallback character
