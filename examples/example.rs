@@ -31,4 +31,17 @@ fn main() {
         .replacement_character(std::char::REPLACEMENT_CHARACTER)
         .finish();
     println!("Custom view: \n{}\n\n", combined_view);
+
+    let color_view = HexViewBuilder::new(&data)
+        .force_color()
+        .add_colors(vec![
+            (hexplay::color::red(), 42..72),
+            (hexplay::color::yellow_bold(), 10..11),
+            (hexplay::color::green(), 32..38),
+            (hexplay::color::blue(), 200..226),
+        ])
+        .finish();
+    println!("Coloured view: \n");
+    color_view.print().unwrap();
+    println!("\n\n");
 }

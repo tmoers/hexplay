@@ -36,9 +36,40 @@
 //! 00000030  30 31 32 33 34 35 36 37 38 39 3A 3B 3C 3D 3E 3F  | 0123456789:;<=>? |
 //! 00000040  40 41 42 43 44 45 46 47                          | @ABCDEFG         |
 //! ```
+//!
+//! # Color
+//!
+//! You can add color to the hextable by specifying a [color::Spec](color/struct.Spec.html) and a range in the hextable to color,
+//! using HexViewBuilder's [add_colors](struct.HexViewBuilder.html#method.add_colors) method.
+//!
+//! **NB**: overlapping color ranges have unspecified behavior (not unsafe though, of course)
+//!
+//! ```rust
+//! use hexplay::HexViewBuilder;
+//!
+//! let data : Vec<u8> = (0u8..200u8).collect();
+//!
+//! let view = HexViewBuilder::new(&data[40..72])
+//!     .address_offset(40)
+//!     .row_width(16)
+//!     .add_colors(vec![
+//!         (hexplay::color::red(), 6..15),
+//!         (hexplay::color::blue(), 21..26),
+//!         (hexplay::color::yellow_bold(), 15..21),
+//!         (hexplay::color::green(), 0..6),
+//!     ])
+//!     .finish();
+//!
+//! // this will print to stdout
+//! view.print().unwrap();
+//! ```
+
+extern crate atty;
+extern crate termcolor;
 
 mod byte_mapping;
 mod format;
+pub mod color;
 
 pub use byte_mapping::CODEPAGE_0850;
 pub use byte_mapping::CODEPAGE_1252;

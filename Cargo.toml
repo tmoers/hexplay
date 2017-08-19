@@ -15,3 +15,5 @@ keywords = ["display", "hex"]
 travis-ci = { repository = "tmoers/hexplay" }
 
 [dependencies]
+atty = "0.2"
+termcolor = "0.3"

@@ -1,8 +1,12 @@
-use std::fmt::{Formatter, Result};
+use std::ops::Range;
 use std;
+use std::io;
+use atty;
 
+use termcolor::{BufferWriter, Buffer, Color, ColorChoice, WriteColor};
+
+use color::{Spec, Colors, ColorRange, ColorlessString};
 use byte_mapping;
-
 
 /// The HexView struct represents the configuration of how to display the data.
 pub struct HexView<'a> {
@@ -11,9 +15,29 @@ pub struct HexView<'a> {
     data: &'a [u8],
     replacement_character: char,
     row_width: usize,
+    colors: Colors,
+    force_color: bool,
+}
+
+macro_rules! color {
+    ($fmt:ident, $color:ident, $str:expr) => ({
+    $fmt.set_color(&$color)?;
+    write!($fmt, "{}", $str)?;
+    $fmt.reset()
+    })
 }
 
 impl<'a> HexView<'a> {
+    /// Prints the hextable to stdout. If any colors were given during construction, the specified ranges will be printed in color.
+    pub fn print(&self) -> io::Result<()> {
+        let cc = if self.force_color || atty::is(atty::Stream::Stdout) { ColorChoice::Auto } else { ColorChoice::Never };
+        let writer = BufferWriter::stdout(cc);
+        let mut buffer: Buffer = writer.buffer();
+        self.fmt(&mut buffer)?;
+        writer.print(&buffer)?;
+        Ok(())
+    }
+
     /// Constructs a new HexView for the given data without offset and using codepage 850, a row width
     /// of 16 and `.` as replacement character.
     pub fn new(data: &[u8]) -> HexView {
@@ -23,7 +47,49 @@ impl<'a> HexView<'a> {
             data: data,
             replacement_character: '.',
             row_width: 16,
+            colors: Colors::new(),
+            force_color: false,
         }
+    }
+
+    pub fn fmt<W: WriteColor>(&self, buffer: &mut W) -> io::Result<()> {
+        let begin_padding = calculate_begin_padding(self.address_offset, self.row_width);
+        let end_padding = calculate_end_padding(begin_padding + self.data.len(), self.row_width);
+        let mut address = self.address_offset - begin_padding;
+        let mut offset = 0;
+        let mut color_range = ColorRange::new(&self.colors);
+        let mut separator = "";
+
+        if self.data.len() + begin_padding + end_padding <= self.row_width {
+            fmt_line(buffer, address, &self.codepage, self.replacement_character, &self.data, &mut color_range, &Padding::new(begin_padding, end_padding))?;
+            return Ok(())
+        }
+
+        if begin_padding != 0 {
+            let slice = &self.data[offset..offset + self.row_width - begin_padding];
+            fmt_line(buffer, address, &self.codepage, self.replacement_character, &slice, &mut color_range, &Padding::from_left(begin_padding))?;
+            offset += self.row_width - begin_padding;
+            address += self.row_width;
+            separator = "\n";
+            color_range.update_offset(offset);
+        }
+
+        while offset + (self.row_width - 1) < self.data.len() {
+            let slice = &self.data[offset..offset + self.row_width];
+            write!(buffer, "{}", separator)?;
+            fmt_line(buffer, address, &self.codepage, self.replacement_character, &slice, &mut color_range, &Padding::default())?;
+            offset += self.row_width;
+            address += self.row_width;
+            separator = "\n";
+            color_range.update_offset(offset);
+        }
+
+        if end_padding != 0 {
+            let slice = &self.data[offset..];
+            writeln!(buffer, "")?;
+            fmt_line(buffer, address, &self.codepage, self.replacement_character, &slice, &mut color_range, &Padding::from_right(end_padding))?;
+        }
+        Ok(())
     }
 }
 
@@ -43,6 +109,12 @@ impl<'a> HexViewBuilder<'a> {
     /// Configures the address offset of the HexView under construction.
     pub fn address_offset(mut self, offset: usize) -> HexViewBuilder<'a> {
         self.hex_view.address_offset = offset;
+        self
+    }
+
+    /// Forces any color data to be printed in `print`, even if redirected to a file or pipe.
+    pub fn force_color(mut self) -> Self {
+        self.hex_view.force_color = true;
         self
     }
 
@@ -66,9 +138,20 @@ impl<'a> HexViewBuilder<'a> {
         self.hex_view.row_width = width;
         self
     }
-
+    /// Adds the vector of `colors` to the range color printer
+    pub fn add_colors(mut self, colors: Colors) -> HexViewBuilder<'a> {
+        self.hex_view.colors.extend(colors);
+        self
+    }
+    /// Adds the `color` to the given `range`, using a more ergonomic API
+    pub fn add_color(mut self, color: &str, range: Range<usize>) -> HexViewBuilder<'a> {
+        use std::str::FromStr;
+        self.hex_view.colors.push((Spec::new().set_fg(Some(Color::from_str(color).unwrap())).clone(), range));
+        self
+    }
     /// Constructs the HexView.
-    pub fn finish(self) -> HexView<'a> {
+    pub fn finish(mut self) -> HexView<'a> {
+        self.hex_view.colors.sort_by(|&(_, ref r1), &(_, ref r2)| r1.start.cmp(&r2.start));
         self.hex_view
     }
 }
@@ -102,7 +185,7 @@ impl Padding {
     }
 }
 
-fn fmt_bytes_as_hex(f: &mut Formatter, bytes: &[u8], padding: &Padding) -> Result {
+fn fmt_bytes_as_hex<W: WriteColor>(f: &mut W, bytes: &[u8], color_range: &mut ColorRange, padding: &Padding) -> io::Result<()> {
     let mut separator = "";
 
     for _ in 0..padding.left {
@@ -110,8 +193,14 @@ fn fmt_bytes_as_hex(f: &mut Formatter, bytes: &[u8], padding: &Padding) -> Resul
         separator = " ";
     }
 
-    for byte in bytes.iter() {
-        write!(f, "{}{:02X}", separator, byte)?;
+    for (i, byte) in bytes.iter().enumerate() {
+        match color_range.get(i) {
+            Some(rgb) => {
+                write!(f, "{}", separator)?;
+                color!(f, rgb, format!("{:02X}", byte))?;
+            },
+            None => write!(f, "{}{:02X}", separator, byte)?,
+        }
         separator = " ";
     }
 
@@ -123,13 +212,19 @@ fn fmt_bytes_as_hex(f: &mut Formatter, bytes: &[u8], padding: &Padding) -> Resul
     Ok(())
 }
 
-fn fmt_bytes_as_char(f: &mut Formatter, cp: &[char], repl_char: char, bytes: &[u8], padding: &Padding) -> Result {
+fn fmt_bytes_as_char<W: WriteColor>(f: &mut W, cp: &[char], repl_char: char, bytes: &[u8], color_range: &mut ColorRange, padding: &Padding) -> io::Result<()> {
     for _ in 0..padding.left {
         write!(f, " ")?;
     }
 
-    for &byte in bytes.iter() {
-        write!(f, "{}", byte_mapping::as_char(byte, cp, repl_char))?;
+    for (i, &byte) in bytes.iter().enumerate() {
+        let byte = byte_mapping::as_char(byte, cp, repl_char);
+        match color_range.get(i) {
+            Some(rgb) => {
+                color!(f, rgb, format!("{}", byte))?;
+            },
+            _ => write!(f, "{}", byte)?,
+        }
     }
 
     for _ in 0..padding.right {
@@ -139,15 +234,16 @@ fn fmt_bytes_as_char(f: &mut Formatter, cp: &[char], repl_char: char, bytes: &[u
     Ok(())
 }
 
-fn fmt_line(f: &mut Formatter, address: usize, cp: &[char], repl_char: char, bytes: &[u8], padding: &Padding) -> Result {
+fn fmt_line<W: WriteColor>(f: &mut W, address: usize, cp: &[char], repl_char: char, bytes: &[u8], color_range: &mut ColorRange, padding: &Padding) -> io::Result<()> {
     write!(f, "{:0width$X}", address, width = 8)?;
 
+    let mut cr = color_range.clone();
     write!(f, "  ")?;
-    fmt_bytes_as_hex(f, bytes, &padding)?;
+    fmt_bytes_as_hex(f, bytes, &mut cr, &padding)?;
     write!(f, "  ")?;
 
     write!(f, "| ")?;
-    fmt_bytes_as_char(f, cp, repl_char, bytes, &padding)?;
+    fmt_bytes_as_char(f, cp, repl_char, bytes, &mut cr, &padding)?;
     write!(f, " |")?;
 
     Ok(())
@@ -169,42 +265,13 @@ impl<'a> std::fmt::Display for HexView<'a> {
             write!(f, "Invalid HexView::width")?;
             return Err(std::fmt::Error);
         }
-
-        let begin_padding = calculate_begin_padding(self.address_offset, self.row_width);
-        let end_padding = calculate_end_padding(begin_padding + self.data.len(), self.row_width);
-        let mut address = self.address_offset - begin_padding;
-        let mut offset = 0;
-        let mut separator = "";
-
-        if self.data.len() + begin_padding + end_padding <= self.row_width {
-            return fmt_line(f, address, &self.codepage, self.replacement_character, &self.data, &Padding::new(begin_padding, end_padding));
+        let mut string = ColorlessString(String::new());
+        match self.fmt(&mut string) {
+            Ok(()) => {
+                write!(f, "{}", string.0)
+            },
+            Err(e) => write!(f, "{}", e)
         }
-
-        if begin_padding != 0 {
-            let slice = &self.data[offset..offset + self.row_width - begin_padding];
-            fmt_line(f, address, &self.codepage, self.replacement_character, &slice, &Padding::from_left(begin_padding))?;
-            offset += self.row_width - begin_padding;
-            address += self.row_width;
-            separator = "\n";
-        }
-
-
-        while offset + (self.row_width - 1) < self.data.len() {
-            let slice = &self.data[offset..offset + self.row_width];
-            write!(f, "{}", separator)?;
-            fmt_line(f, address, &self.codepage, self.replacement_character, &slice, &Padding::default())?;
-            offset += self.row_width;
-            address += self.row_width;
-            separator = "\n";
-        }
-
-        if end_padding != 0 {
-            let slice = &self.data[offset..];
-            write!(f, "{}", separator)?;
-            fmt_line(f, address, &self.codepage, self.replacement_character, &slice, &Padding::from_right(end_padding))?;
-        }
-
-        Ok(())
     }
 }
 
@@ -336,6 +403,20 @@ mod tests {
 
         assert!(result.contains(&row_2_address_offset_str));
         assert!(result.contains(&row_4_address_offset_str));
+    }
+
+    #[test]
+    fn there_is_no_superfluous_whitespace() {
+        let data = [0; 17];
+
+        let one_line_result = format!("{}", HexViewBuilder::new(&data[0..16]).finish());
+        let two_line_result = format!("{}", HexViewBuilder::new(&data[0..17]).finish());
+
+        println!("{}", one_line_result);
+        println!("{}", two_line_result);
+
+        assert_eq!(one_line_result, one_line_result.trim());
+        assert_eq!(two_line_result, two_line_result.trim());
     }
 
     #[test]
