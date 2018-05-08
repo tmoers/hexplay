@@ -62,15 +62,13 @@ impl<'a> ColorRange<'a> {
     pub fn update_offset(&mut self, offset: usize) {
         self.offset = offset;
     }
-    pub fn get(&self, idx: usize) -> Option<Spec> {
+    pub fn get(&self, idx: usize) -> Option<&Spec> {
         let mut i = 0;
+        let offset = self.offset + idx;
         while i < self.colors.len() {
-            let (rgb, range) = self.colors[i].clone();
-            let offset = self.offset + idx;
+            let (ref rgb, ref range) = self.colors[i];
             if offset >= range.start && offset < range.end {
-                return Some(rgb)
-            } else if offset <= range.start { // for non-contiguous colors
-                return None
+                return Some(rgb);
             } else {
                 i += 1;
             }
