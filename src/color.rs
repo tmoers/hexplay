@@ -41,7 +41,6 @@ impl WriteColor for ColorlessString {
 pub struct ColorRange<'a> {
     colors: &'a Colors,
     offset: usize,
-    idx: usize,
 }
 
 impl<'a> Clone for ColorRange<'a> {
@@ -49,7 +48,6 @@ impl<'a> Clone for ColorRange<'a> {
         ColorRange {
             colors: self.colors,
             offset: self.offset,
-            idx: self.idx,
         }
     }
 }
@@ -59,22 +57,20 @@ impl<'a> ColorRange<'a> {
         ColorRange {
             colors: colors,
             offset: 0,
-            idx: 0,
         }
     }
     pub fn update_offset(&mut self, offset: usize) {
         self.offset = offset;
     }
-    pub fn get(&mut self, idx: usize) -> Option<Spec> {
-        while self.idx < self.colors.len() {
-            let (rgb, range) = self.colors[self.idx].clone();
-            let offset = self.offset + idx;
+    pub fn get(&self, idx: usize) -> Option<&Spec> {
+        let mut i = 0;
+        let offset = self.offset + idx;
+        while i < self.colors.len() {
+            let (ref rgb, ref range) = self.colors[i];
             if offset >= range.start && offset < range.end {
-                return Some(rgb)
-            } else if offset <= range.start { // for non-contiguous colors
-                return None
+                return Some(rgb);
             } else {
-                self.idx += 1;
+                i += 1;
             }
         }
         None

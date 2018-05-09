@@ -185,7 +185,7 @@ impl Padding {
     }
 }
 
-fn fmt_bytes_as_hex<W: WriteColor>(f: &mut W, bytes: &[u8], color_range: &mut ColorRange, padding: &Padding) -> io::Result<()> {
+fn fmt_bytes_as_hex<W: WriteColor>(f: &mut W, bytes: &[u8], color_range: &ColorRange, padding: &Padding) -> io::Result<()> {
     let mut separator = "";
 
     for _ in 0..padding.left {
@@ -212,7 +212,7 @@ fn fmt_bytes_as_hex<W: WriteColor>(f: &mut W, bytes: &[u8], color_range: &mut Co
     Ok(())
 }
 
-fn fmt_bytes_as_char<W: WriteColor>(f: &mut W, cp: &[char], repl_char: char, bytes: &[u8], color_range: &mut ColorRange, padding: &Padding) -> io::Result<()> {
+fn fmt_bytes_as_char<W: WriteColor>(f: &mut W, cp: &[char], repl_char: char, bytes: &[u8], color_range: &ColorRange, padding: &Padding) -> io::Result<()> {
     for _ in 0..padding.left {
         write!(f, " ")?;
     }
@@ -237,13 +237,12 @@ fn fmt_bytes_as_char<W: WriteColor>(f: &mut W, cp: &[char], repl_char: char, byt
 fn fmt_line<W: WriteColor>(f: &mut W, address: usize, cp: &[char], repl_char: char, bytes: &[u8], color_range: &mut ColorRange, padding: &Padding) -> io::Result<()> {
     write!(f, "{:0width$X}", address, width = 8)?;
 
-    let mut cr = color_range.clone();
     write!(f, "  ")?;
-    fmt_bytes_as_hex(f, bytes, &mut cr, &padding)?;
+    fmt_bytes_as_hex(f, bytes, &color_range, &padding)?;
     write!(f, "  ")?;
 
     write!(f, "| ")?;
-    fmt_bytes_as_char(f, cp, repl_char, bytes, &mut cr, &padding)?;
+    fmt_bytes_as_char(f, cp, repl_char, bytes, &color_range, &padding)?;
     write!(f, " |")?;
 
     Ok(())
