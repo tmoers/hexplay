@@ -1,3 +1,7 @@
+# 0.2.1 (May 08, 2018)
+
+- Fix incorrect color highlighting (thanks [Erich Gubler](https://github.com/ErichDonGubler)!)
+
 # 0.2.0 (August 19, 2017)
 
 - Support coloring subranges (thanks [m4b](https://github.com/m4b)!)
