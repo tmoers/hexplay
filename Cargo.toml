@@ -1,6 +1,6 @@
 [package]
 name = "hexplay"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Tom Moers <tmoers@users.noreply.github.com>"]
 description = "Format u8 slices like an hex editor"
 
