@@ -1,3 +1,7 @@
+# 0.3.0 (May 03, 2023)
+
+- Bump `termcolor` dependency to v1.2
+
 # 0.2.1 (May 08, 2018)
 
 - Fix incorrect color highlighting (thanks [Erich Gubler](https://github.com/ErichDonGubler)!)
